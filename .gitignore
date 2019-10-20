@@ -105,3 +105,6 @@ venv.bak/
 
 # pytest.cov reports
 tests.xml
+
+# Local build directory
+.build/

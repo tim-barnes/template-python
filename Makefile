@@ -1,26 +1,39 @@
-repo="template-project"
-tag="0.1.0"
-name="template-project"
+include project.cfg
 
 DOCKER = DOCKER_BUILDKIT=1 docker
 REQUIREMENTS = src/requirements*.txt
 SOURCE = src/**
 
+BUILD_DIR = .build
+
+CONTAINER_NAME = $(repo)
 
 default: build
-.PHONY: FORCE tools default build test test_build debug format lint typecheck
+.PHONY: FORCE clean default build test test_build debug format lint typecheck clean_tools_container
 FORCE:
 
-build: Dockerfile $(SOURCE)
+clean:
+	rm -Rf $(BUILD_DIR)
+
+$(BUILD_DIR):
+	mkdir $(BUILD_DIR)
+
+
+$(BUILD_DIR)/build: Dockerfile $(SOURCE) | $(BUILD_DIR)
 	$(DOCKER) build \
 		--tag $(repo):latest \
 		--tag $(repo):$(tag) \
 		.
+	touch $(BUILD_DIR)/build
 
-run: build
+
+build: $(BUILD_DIR)/build
+
+
+run: $(BUILD_DIR)/build
 	docker run --rm \
 		--publish=5000:5000 \
-		--name="$(name)" \
+		--name="$(CONTAINER_NAME)" \
 		"$(repo)":latest
 
 
@@ -49,32 +62,35 @@ test: $(DOCKERFILE) test_build
 		--mount type=bind,source="$(PWD)/src",destination=/app\
 		"$(repo)":tests
 
-tools: Dockerfile
-	tools_name=tools-$(name)
+tools_name=tools-$(repo)
+
+$(BUILD_DIR)/tools: Dockerfile tools.ini | $(BUILD_DIR)
 	$(DOCKER) build \
 		--target=tools \
 		--tag="$(repo):tools" \
 		. || exit 1
+	touch $(BUILD_DIR)/tools
 
 
-format: tools
-	$(DOCKER) run -it \
-		--name="$(tools_name)" \
+# Command to run the tools image (Note: silent rule)
+
+clean_tools_container:
+	@ docker rm -f $(tools_name) > /dev/null 2>&1 || true
+
+TOOLS_DOCKER_RUN = @ $(DOCKER) run -it \
+		--name=$(tools_name) \
 		--mount type=bind,source="$(PWD)/src",destination=/app\
-		"$(repo)":tools \
-		black /app/
+		"$(repo)":tools
 
-lint: tools
-	$(DOCKER) run -it \
-		--name="$(tools_name)" \
-		--mount type=bind,source="$(PWD)/src",destination=/app\
-		"$(repo)":tools \
-		flake8 --config=/root/tools.ini
 
-typecheck: tools
-	$(DOCKER) run -it \
-		--name="$(tools_name)" \
-		--mount type=bind,source="$(PWD)/src",destination=/app\
-		"$(repo)":tools \
-		mypy --config=/root/tools.ini .
+format: $(BUILD_DIR)/tools | clean_tools_container
+	$(TOOLS_DOCKER_RUN) black /app/
+
+
+lint: $(BUILD_DIR)/tools | clean_tools_container
+	$(TOOLS_DOCKER_RUN) flake8 --config=/root/tools.ini
+
+
+typecheck: $(BUILD_DIR)/tools | clean_tools_container
+	$(TOOLS_DOCKER_RUN) mypy --config=/root/tools.ini .
 
