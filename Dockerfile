@@ -16,7 +16,7 @@ COPY ./src/requirements-test.txt ./
 RUN pip install -r requirements-test.txt
 ENTRYPOINT ["pytest", "-vv", "--cov=.", "--cov-report=xml:coverage.xml", "--cov-report=term", "--junitxml=tests.xml"]
 
-# -- Formatting helper --
+# -- Tools helper Image --
 FROM base as tools
 
 WORKDIR /app
