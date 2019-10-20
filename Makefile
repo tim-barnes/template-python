@@ -7,18 +7,31 @@ SOURCE = src/**
 BUILD_DIR = .build
 
 CONTAINER_NAME = $(repo)
+TEST_CONTAINER_NAME = debug-$(repo)
+TOOL_CONTAINER_NAME = tools-$(repo)
+
+CONTAINERS = $(CONTAINER_NAME) $(TEST_CONTAINER_NAME) $(TOOL_CONTAINER_NAME)
 
 default: build
-.PHONY: FORCE clean default build test test_build debug format lint typecheck clean_tools_container
+.PHONY: FORCE clean default build test test_build debug format lint typecheck clean_docker_containers
 FORCE:
 
+# Utility rules
+# -------------
+
+# $(BUILD_DIR) is used for targets
 clean:
 	rm -Rf $(BUILD_DIR)
 
 $(BUILD_DIR):
 	mkdir $(BUILD_DIR)
 
+clean_docker_containers: clean_tools_containers clean_test_containers
+	@ docker rm -f $(CONTAINER_NAME) > /dev/null 2>&1 || true
 
+
+# Plain Build Rules
+# -----------------
 $(BUILD_DIR)/build: Dockerfile $(SOURCE) | $(BUILD_DIR)
 	$(DOCKER) build \
 		--tag $(repo):latest \
@@ -37,33 +50,34 @@ run: $(BUILD_DIR)/build
 		"$(repo)":latest
 
 
-test_build: Dockerfile $(REQUIREMENTS)
-	debug_name="debug-$(name)"
-	docker rm -f "$(debug_name)" > /dev/null 2>&1 || true
+# -- Testing Build Rules --
+clean_test_containers:
+	@ docker rm -f $(TEST_CONTAINER_NAME) > /dev/null 2>&1 || true
 
+$(BUILD_DIR)/tests: Dockerfile $(REQUIREMENTS) | $(BUILD_DIR)
 	$(DOCKER) build \
 		--target=test \
 		--tag="$(repo):tests" \
-		. || exit 1
+		.
 
 
-debug: Dockerfile test_build
+debug: Dockerfile $(BUILD_DIR)/tests | clean_test_containers
 	$(DOCKER) run -it \
-		--name="$(debug_name)" \
+		--name="$(TEST_CONTAINER_NAME)" \
 		--mount type=bind,source="$(PWD)/src",destination=/app\
 		--entrypoint='' \
 		"$(repo)":tests \
 		bash
 
 
-test: $(DOCKERFILE) test_build
+test: $(DOCKERFILE) $(BUILD_DIR)/tests | clean_test_containers
 	$(DOCKER) run -it \
-		--name="$(debug_name)" \
+		--name="$(TEST_CONTAINER_NAME)" \
 		--mount type=bind,source="$(PWD)/src",destination=/app\
 		"$(repo)":tests
 
-tools_name=tools-$(repo)
 
+# -- Tools build rules --
 $(BUILD_DIR)/tools: Dockerfile tools.ini | $(BUILD_DIR)
 	$(DOCKER) build \
 		--target=tools \
@@ -71,26 +85,23 @@ $(BUILD_DIR)/tools: Dockerfile tools.ini | $(BUILD_DIR)
 		. || exit 1
 	touch $(BUILD_DIR)/tools
 
-
-# Command to run the tools image (Note: silent rule)
-
-clean_tools_container:
-	@ docker rm -f $(tools_name) > /dev/null 2>&1 || true
+clean_tools_containers:
+	@ docker rm -f $(TOOL_CONTAINER_NAME) > /dev/null 2>&1 || true
 
 TOOLS_DOCKER_RUN = @ $(DOCKER) run -it \
-		--name=$(tools_name) \
+		--name=$(TOOL_CONTAINER_NAME) \
 		--mount type=bind,source="$(PWD)/src",destination=/app\
 		"$(repo)":tools
 
 
-format: $(BUILD_DIR)/tools | clean_tools_container
+format: $(BUILD_DIR)/tools | clean_tools_containers
 	$(TOOLS_DOCKER_RUN) black /app/
 
 
-lint: $(BUILD_DIR)/tools | clean_tools_container
+lint: $(BUILD_DIR)/tools | clean_tools_containers
 	$(TOOLS_DOCKER_RUN) flake8 --config=/root/tools.ini
 
 
-typecheck: $(BUILD_DIR)/tools | clean_tools_container
+typecheck: $(BUILD_DIR)/tools | clean_tools_containers
 	$(TOOLS_DOCKER_RUN) mypy --config=/root/tools.ini .
 
