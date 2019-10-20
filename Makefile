@@ -3,19 +3,19 @@ tag="0.1.0"
 name="template-project"
 
 DOCKER = DOCKER_BUILDKIT=1 docker
-DOCKERFILE = Dockerfile src/**
+REQUIREMENTS = src/requirements*.txt
+SOURCE = src/**
 
 
 default: build
-.PHONY: FORCE TOOLS default build test test_build debug format lint typecheck
+.PHONY: FORCE tools default build test test_build debug format lint typecheck
 FORCE:
 
-build: $(DOCKERFILE)
+build: Dockerfile $(SOURCE)
 	$(DOCKER) build \
 		--tag $(repo):latest \
 		--tag $(repo):$(tag) \
 		.
-
 
 run: build
 	docker run --rm \
@@ -24,7 +24,7 @@ run: build
 		"$(repo)":latest
 
 
-test_build:
+test_build: Dockerfile $(REQUIREMENTS)
 	debug_name="debug-$(name)"
 	docker rm -f "$(debug_name)" > /dev/null 2>&1 || true
 
@@ -34,7 +34,7 @@ test_build:
 		. || exit 1
 
 
-debug: $(DOCKERFILE) test_build
+debug: Dockerfile test_build
 	$(DOCKER) run -it \
 		--name="$(debug_name)" \
 		--mount type=bind,source="$(PWD)/src",destination=/app\
@@ -49,29 +49,29 @@ test: $(DOCKERFILE) test_build
 		--mount type=bind,source="$(PWD)/src",destination=/app\
 		"$(repo)":tests
 
-tools:
-	tools_name="tools-$(name)"
+tools: Dockerfile
+	tools_name=tools-$(name)
 	$(DOCKER) build \
 		--target=tools \
 		--tag="$(repo):tools" \
 		. || exit 1
 
 
-format: $(DOCKERFILE) tools
+format: tools
 	$(DOCKER) run -it \
 		--name="$(tools_name)" \
 		--mount type=bind,source="$(PWD)/src",destination=/app\
 		"$(repo)":tools \
-		black .
+		black /app/
 
-lint: $(DOCKERFILE) tools
+lint: tools
 	$(DOCKER) run -it \
 		--name="$(tools_name)" \
 		--mount type=bind,source="$(PWD)/src",destination=/app\
 		"$(repo)":tools \
 		flake8 --config=/root/tools.ini
 
-typecheck: $(DOCKERFILE) tools
+typecheck: tools
 	$(DOCKER) run -it \
 		--name="$(tools_name)" \
 		--mount type=bind,source="$(PWD)/src",destination=/app\

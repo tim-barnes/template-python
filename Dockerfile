@@ -12,10 +12,6 @@ RUN pip install -r requirements.txt
 # Code to be mounted into /app
 FROM base as test
 
-# this is to avoid wasting time copying bytecode from memory to storage, and avoid __pycache__ spew locally
-ENV PYTHONDONTWRITEBYTECODE=1
-
-ARG PIP_INDEX_URL
 COPY ./src/requirements-test.txt ./
 RUN pip install -r requirements-test.txt
 ENTRYPOINT ["pytest", "-vv", "--cov=.", "--cov-report=xml:coverage.xml", "--cov-report=term", "--junitxml=tests.xml"]
@@ -32,9 +28,8 @@ ENTRYPOINT [ "bash", "-c" ]
 # Runs the service
 FROM base as prod
 
-# this is to avoid wasting time copying bytecode from memory to storage, and avoid __pycache__ spew locally
-ENV PYTHONDONTWRITEBYTECODE=1
 COPY ./src .
-# Flask default port
-EXPOSE 5000
+
+# Expose any ports
+# EXPOSE 5000
 ENTRYPOINT ["python3", "app.py"]
