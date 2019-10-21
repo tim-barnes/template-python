@@ -16,7 +16,7 @@ TOOL_CONTAINER_NAME = tools-$(repo)
 
 
 default: build
-.PHONY: FORCE clean build test test_build debug format lint typecheck checks
+.PHONY: FORCE clean build test debug format lint typecheck checks
 FORCE:
 
 # Utility rules
@@ -91,14 +91,17 @@ DOCKER_RUN_TOOLS = @ $(DOCKER) run -it \
 
 
 format: $(BUILD_DIR)/tools
-	$(DOCKER_RUN_TOOLS) black /app/
+	@ echo -- Format --
+	$(DOCKER_RUN_TOOLS) "black /app"
 
 
 lint: $(BUILD_DIR)/tools
+	@ echo -- Lint --
 	$(DOCKER_RUN_TOOLS) flake8 --config=/root/tools.ini
 
 
 typecheck: $(BUILD_DIR)/tools
-	$(DOCKER_RUN_TOOLS) mypy --config=/root/tools.ini .
+	@ echo -- Typecheck --
+	$(DOCKER_RUN_TOOLS) "mypy --config=/root/tools.ini ."
 
 checks: format lint typecheck
