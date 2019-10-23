@@ -1,7 +1,6 @@
 # -- Base Image --
 # Installs application dependencies
 FROM python:3.7.2 as base
-ENV PYTHONUNBUFFERED 1
 
 # Set up application environment
 WORKDIR /app
