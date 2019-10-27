@@ -47,14 +47,14 @@ run: $(BUILD_DIR)/build
 	docker run --rm \
 		--publish=5000:5000 \
 		--name="$(CONTAINER_NAME)" \
-		"$(repo)":latest
+		$(repo):latest
 
 
 # -- Testing Build Rules --
 $(BUILD_DIR)/tests: Dockerfile $(REQUIREMENTS) | $(BUILD_DIR)
 	$(DOCKER) build \
 		--target=test \
-		--tag="$(repo):tests" \
+		--tag=$(repo):tests \
 		.
 	touch $(BUILD_DIR)/tests
 
@@ -66,12 +66,12 @@ DOCKER_RUN_TESTS = $(DOCKER) run -it \
 debug: Dockerfile $(BUILD_DIR)/tests
 	$(DOCKER_RUN_TESTS) \
 		--entrypoint='' \
-		"$(repo)":tests \
+		$(repo):tests \
 		bash
 
 test: $(DOCKERFILE) $(BUILD_DIR)/tests
 	$(DOCKER_RUN_TESTS) \
-		"$(repo)":tests
+		$(repo):tests
 
 
 # -- Tools build rules --
@@ -87,7 +87,7 @@ DOCKER_RUN_TOOLS = @ $(DOCKER) run -it \
 		--name=$(TOOL_CONTAINER_NAME) \
 		--rm \
 		--mount type=bind,source="$(PWD)/src",destination=/app\
-		"$(repo)":tools
+		"$(repo):tools"
 
 
 format: $(BUILD_DIR)/tools
