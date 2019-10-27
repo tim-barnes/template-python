@@ -63,13 +63,13 @@ DOCKER_RUN_TESTS = $(DOCKER) run -it \
 		--rm \
 		--mount type=bind,source="$(PWD)/src",destination=/app\
 
-debug: Dockerfile $(BUILD_DIR)/tests
+debug: $(BUILD_DIR)/tests
 	$(DOCKER_RUN_TESTS) \
 		--entrypoint='' \
 		$(repo):tests \
 		bash
 
-test: $(DOCKERFILE) $(BUILD_DIR)/tests
+test: $(BUILD_DIR)/tests
 	$(DOCKER_RUN_TESTS) \
 		$(repo):tests
 
