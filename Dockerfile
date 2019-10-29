@@ -19,8 +19,9 @@ ENTRYPOINT ["pytest", "-vv", "--cov=.", "--cov-report=xml:coverage.xml", "--cov-
 FROM base as tools
 
 WORKDIR /app
-COPY tools.ini /root/
-RUN pip install black flake8 flake8-bugbear mypy
+COPY tools.ini /root/ \
+    ./src/requirements-tools.txt /app/
+RUN pip install -r requirements-tools.txt
 ENTRYPOINT [ "bash", "-c" ]
 
 # -- Production Image --
